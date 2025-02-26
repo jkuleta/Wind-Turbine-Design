@@ -32,7 +32,7 @@ print("Rotational speed range - min:", omega_RPM[0], ", max:", omega_RPM[-1])
 
 # Torque in the shaft
 torque = P_rated / omega[-1]
-print("Torque [Nm]:", torque)
+print("Torque [MNm]:", torque/(10**6))
 
 # Weibull parameters for different locations
 locations = {
