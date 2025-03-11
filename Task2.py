@@ -15,18 +15,20 @@ df_5MW = pd.read_csv('5MW WT Power Curve.csv')
 df_3_5MW = pd.read_csv('3.5MW WT Power Curve scaled.csv')
 
 # Constants
-D_ref = 126 # meter - Rotor diameter of reference turbine
-H_ref = 90 # meter - Hub height of reference turbine
-P_ref = 5000 # kW - Rated power of reference turbine
-P_rated = 3500 # kW - Rated power of scaled turbine
-D_scale = D_ref * (P_rated/P_ref)**(1/2)
-v_cutin = 3 # m/s - Cut-in wind speed
-v_cutout = 25 # m/s - Cut-out wind speed
-v_rated = 11.4 # m/s - Rated wind speed
-Cp_ref = 0.482 # Reference turbine power coefficient
-k = 2.241  # Shape parameter found by Marcos
-A = 8.97   # Scale parameter found by Marcos
-rho = 1.225 # kg/m^3 - Air density
+D_ref = 126                                 # meter - Rotor diameter of reference turbine
+H_ref = 90                                  # meter - Hub height of reference turbine
+P_ref = 5000                                # kW - Rated power of reference turbine
+P_rated = 3500                              # kW - Rated power of scaled turbine
+D_scale = D_ref * (P_rated/P_ref)**(1/2)    # meter - Scaled rotor diameter
+D_scale = np.round(D_scale, 0)
+
+v_cutin = 3                                 # m/s - Cut-in wind speed
+v_cutout = 25                               # m/s - Cut-out wind speed
+v_rated = 11.4                              # m/s - Rated wind speed
+Cp_ref = 0.482                              # Reference turbine power coefficient
+k = 2.241                                   # Weibull Shape parameter found by Marcos
+A = 8.97                                    # Weibull Scale parameter found by Marcos
+rho = 1.225                                 # kg/m^3 - Air density
 
 
 
@@ -42,7 +44,7 @@ def calculate_onshore_cost(D, D_scale):
 
 
 # Define the power curve function
-def power_curve(v, v_cutin, v_rated, v_cutout, P_rated, D):
+def power_curve(v, v_cutin, v_cutout, P_rated, D):
     if v < v_cutin or v > v_cutout:
         return 0
     elif v_cutin <= v and 0.5 * rho * np.pi * (D / 2) ** 2 * Cp_ref * v ** 3 / 1000 < P_rated:
@@ -86,7 +88,7 @@ def calculate_LPC(C, AEP):
 wind_speeds = np.arange(0, 26, 0.1)
 
 # Initialize lists to store results
-diameters = np.arange(D_scale - 20, D_scale + 31, 1)
+diameters = np.arange(D_scale - 20, D_scale + 31, 0.5)
 LPC_values = []
 AEP_values = []
 
@@ -104,7 +106,7 @@ plt.figure(figsize=(10, 5))
 # Loop over each diameter
 for D in diameters:
     # Calculate Power Curve
-    power_output = [power_curve(v, v_cutin, v_rated, v_cutout, P_rated, D) for v in wind_speeds]
+    power_output = [power_curve(v, v_cutin, v_cutout, P_rated, D) for v in wind_speeds]
 
     # Calculate Weibull PDF 
     pdf_values = weibull_pdf(wind_speeds, A, k)
@@ -121,7 +123,7 @@ for D in diameters:
     print(f"LPC for D={D:.2f}m: {LPC:.2f} $/MWh \n")
 
     # Plot the power curve for the current diameter
-    plt.plot(wind_speeds, power_output, color=plt.cm.turbo((D - diameters[0]) / (diameters[-1] - diameters[0])))
+    plt.plot(wind_speeds, power_output, color=plt.cm.cool(0.05+0.95*(D - diameters[0]) / (diameters[-1] - diameters[0])))
 
 # Find the optimum diameter based on the minimum LPC
 optimum_diameter_index = np.argmin(LPC_values)
@@ -129,35 +131,45 @@ optimum_diameter = diameters[optimum_diameter_index]
 optimum_LPC = LPC_values[optimum_diameter_index]
 print(f"The optimum rotor diameter is {optimum_diameter:.2f} meters with a minimum LPC of {optimum_LPC:.2f} $/MWh")
 
-
 # Plot the power curve for the optimum diameter
-optimum_power_output = [power_curve(v, v_cutin, v_rated, v_cutout, P_rated, optimum_diameter) for v in wind_speeds]
-plt.plot(wind_speeds, optimum_power_output, label=f'Optimum D={optimum_diameter:.1f}m', color='black', linestyle='--', linewidth=2)
+optimum_power_output = [power_curve(v, v_cutin, v_cutout, P_rated, optimum_diameter) for v in wind_speeds]
+plt.plot(wind_speeds, optimum_power_output, label=f'Optimum Diameter, D = {optimum_diameter:.1f}m', color='black', linestyle='-', linewidth=2)
+
+# Find the rated wind speed for the optimum diameter
+for v in wind_speeds:
+    if power_curve(v, v_cutin, v_cutout, P_rated, optimum_diameter) >= P_rated:
+        optimum_v_rated = v
+        break
+
+# Plot the vertical line for the rated wind speed of the optimum diameter
+plt.axvline(x=optimum_v_rated, color='black', linestyle=':', label=f'Optimum Diameter, $v_{{rated}}$ = {optimum_v_rated:.1f} m/s')
+
 # Plot the power curve for the 3.5MW scaled turbine
-plt.plot(df_3_5MW.iloc[:, 0], df_3_5MW.iloc[:, 1], label='5MW Turbine (scaled)', color='black', linestyle='-', linewidth=3)
+plt.plot(df_3_5MW.iloc[:, 0], df_3_5MW.iloc[:, 1], label='NREL 3.5-MW Turbine (scaled)', color='black', linestyle='--', linewidth=2)
+
 # Finalize the power curve plot
 plt.xlabel('Wind Speed [m/s]', fontsize=14)
 plt.ylabel('Power Output [kW]', fontsize=14)
-plt.title('Wind Turbine Power Curves for Different Diameters', fontsize=14)
+#plt.title('Wind Turbine Power Curves for Different Diameters', fontsize=14)
 plt.xlim(2.5, 25)
 plt.ylim(0, 3700)
 plt.xticks(np.arange(3, 26, 1))
-plt.axvline(x=v_rated, color='grey', linestyle=':', label=f'5MW $v_{{rated}}$ = {v_rated} m/s')
+plt.axvline(x=v_rated, color='black', linestyle=':', label=f'NREL 3.5-MW $v_{{rated}}$ = {v_rated} m/s')
 plt.legend(loc='lower right', fontsize=12)
 plt.grid(True)
+
 # Add colorbar
-sm = plt.cm.ScalarMappable(cmap='turbo', norm=plt.Normalize(vmin=diameters[0],vmax=diameters[-1]))
+sm = plt.cm.ScalarMappable(cmap='cool', norm=plt.Normalize(vmin=diameters[0], vmax=diameters[-1]))
 sm.set_array([])
 cbar = plt.colorbar(sm, pad=0.02)
-cbar.set_label('Rotor Diameter [m]',labelpad=-15, fontsize=14)
+cbar.set_label('Rotor Diameter [m]', labelpad=-15, fontsize=14)
 cbar.set_ticks([diameters[0], diameters[-1]])
 cbar.set_ticklabels([f'{diameters[0]:.1f}m', f'{diameters[-1]:.1f}m'])
 plt.show()
 
 
 
-
-
+# %%
 
 
 
@@ -169,7 +181,7 @@ fig, ax1 = plt.subplots(figsize=(10, 5))
 # Plot LPC And AEP
 color = 'tab:blue'
 ax1.set_xlabel('Rotor Diameter [m]', fontsize=14)
-ax1.set_ylabel('LPC [$/MWh]', color=color, fontsize=16)
+ax1.set_ylabel('LPC [Cost/MWh]', color=color, fontsize=16)
 ax1.plot(diameters, LPC_values, marker='o', color=color, label='LPC')
 ax1.tick_params(axis='y', labelcolor=color, labelsize=14)
 ax1.tick_params(axis='x', labelsize=14)
@@ -183,13 +195,29 @@ ax2.plot(diameters, AEP_values, marker='s', color=color, label='AEP')
 ax2.tick_params(axis='y', labelcolor=color, labelsize=14)
 
 # Plot vertical line at optimum diameter
-ax1.axvline(x=optimum_diameter, color='green', linestyle='--', label=f'Optimum Diameter: {optimum_diameter:.1f}m')
+ax1.axvline(x=optimum_diameter, color='green', linestyle='--', label=f'Optimum Diameter: {optimum_diameter:.1f}m', linewidth=2)
+
+# Plot horizontal lines at the optimum diameter for LPC and AEP
+ax1.axhline(y=optimum_LPC, color='tab:blue', linestyle=':', linewidth=2, label=f'Optimum LPC: {optimum_LPC:.2f} $/MWh')
+ax2.axhline(y=AEP_values[optimum_diameter_index], color='tab:red', linestyle=':', linewidth=2, label=f'Optimum AEP: {AEP_values[optimum_diameter_index]:.2f} GWh')
 
 # Add title and grid
-fig.suptitle('Levelized Cost of Energy (LPC) and Annual Energy Production (AEP) vs Rotor Diameter', fontsize=14)
 fig.tight_layout()
 ax1.grid(True)
-fig.legend(loc='upper center', bbox_to_anchor=(0.5, 0.02), ncol=3, fontsize=14)
+fig.legend(loc='upper center', bbox_to_anchor=(0.5, 0.02), ncol=2, fontsize=14)
 
 # Show plot
 plt.show()
+
+
+#%%
+# Calculate the maximum rotational speed
+def calculate_rated_rotational_speed(D, rated_tip_speed):
+    return (rated_tip_speed * 60) / (np.pi * D)
+
+# Maximum tip speed
+rated_tip_speed = 80  # m/s
+print(f"Rated tip speed of: {rated_tip_speed} m/s")
+# Calculate the maximum rotational speed for the optimum diameter
+max_rotational_speed = calculate_rated_rotational_speed(optimum_diameter, rated_tip_speed)
+print(f"The rated rotational speed for the optimum diameter of {optimum_diameter:.2f} meters is {max_rotational_speed:.2f} RPM")
