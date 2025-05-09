@@ -29,7 +29,7 @@ omega = np.where(V < V_rated, TSR * V / R, TSR * V_rated / R)
 omega_scale = np.where(V < V_rated_scale, TSR * V / R_scale, TSR * V_rated_scale / R_scale)
 
 #calculate power
-Power = np.where(V <= V_rated, 0.5*1.225*R**2*np.pi*V**3, P_rated)
+Power = np.where(V <= V_rated, cp*0.5*1.225*R**2*np.pi*V**3, P_rated)
 
 # Convert omega to RPM
 omega_RPM = omega * 60 / (2 * np.pi)
