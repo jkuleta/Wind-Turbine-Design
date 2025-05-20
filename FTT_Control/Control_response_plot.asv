@@ -1,0 +1,57 @@
+clc; clear all; close all;
+
+plot_response("Step_response_fixed_damp.mat", "Step_response_scheduled_damp.mat");
+
+function plot_response(file1, file2)
+    data1 = load(file1);
+    data2 = load(file2);
+
+    figure;
+    subplot(3,2,1);
+    plot(data1.Time, data1.Wind1VelX, 'LineWidth', 1.5);
+    hold on;
+    plot(data2.Time, data2.Wind1VelX, 'LineWidth', 1.5);
+    grid on;
+    title('Wind Velocity [m/s]');
+
+    subplot(3,2,2);
+    plot(data1.Time, data1.GenSpeed, 'LineWidth', 1.5);
+    hold on;
+    plot(data2.Time, data2.GenSpeed, 'LineWidth', 1.5);
+    grid on;
+    title('Generator Speed [rpm]');
+
+    subplot(3,2,3);
+    plot(data1.Time, data1.GenPwr/1000, 'LineWidth', 1.5);
+    hold on;
+    plot(data2.Time, data2.GenPwr/1000, 'LineWidth', 1.5);
+    grid on;
+    title('Generator Power [kW]');
+
+
+    subplot(3,2,4);
+    plot(data1.Time, data1.BlPitch1,"LineWidth", 1.5);
+    hold on;   
+    plot(data2.Time, data2.BlPitch1, 'LineWidth', 1.5);
+    grid on;
+    title('Blade Pitch Angle [deg]');
+
+
+    subplot(3,2,5);
+    plot(data1.Time, data1.GenTq, "LineWidth", 1.5);
+    hold on;        
+    plot(data2.Time, data2.GenTq, 'LineWidth', 1.5);
+    grid on;
+    title('Generator Torque [Nm]');
+    xlabel("Time [s]")
+
+    subplot(3,2,6);
+    plot(data1.Time, data1.NclMUTAxs, "LineWidth", 1.5);
+    hold on;
+    plot(data2.Time, data2.NclMUTAxs, 'LineWidth', 1.5);
+    grid on;
+    plot(data1.Time, data1.NclMUTAys, 'LineWidth', 1.5);
+    plot(data2.Time, data2.NclMUTAys, 'LineWidth', 1.5);
+    title('Nacelle Acceleration [m/s^2]');
+    xlabel
+end
